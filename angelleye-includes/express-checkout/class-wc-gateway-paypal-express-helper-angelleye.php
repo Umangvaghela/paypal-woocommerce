@@ -69,6 +69,7 @@ class Angelleye_PayPal_Express_Checkout_Helper {
             add_filter('woocommerce_thankyou_order_received_text', array($this, 'ec_order_received_text'), 10, 2);
             add_action('wp_enqueue_scripts', array($this, 'ec_enqueue_scripts_product_page'));
             add_action('woocommerce_before_cart_table', array($this, 'top_cart_button'));
+            add_action( 'woocommerce_after_mini_cart', array($this, 'mini_cart_button'));
             add_filter('woocommerce_is_sold_individually', array($this, 'angelleye_woocommerce_is_sold_individually'), 10, 2);
             add_filter('woocommerce_ship_to_different_address_checked', array($this, 'angelleye_ship_to_different_address_checked'), 10,1);
             if ($this->is_express_checkout_credentials_is_set()) {
@@ -389,11 +390,24 @@ class Angelleye_PayPal_Express_Checkout_Helper {
             }
         }
     }
+    
+    public function mini_cart_button() {
+         if ($this->is_express_checkout_credentials_is_set()) {
+            $mini_cart_button_html = '';
+            $mini_cart_button_html .= $this->woocommerce_paypal_express_checkout_button_angelleye($return = true);
+            $mini_cart_button_html .= "<div class='clear'></div></div>";
+            echo apply_filters('angelleye_ec_mini_cart_button_html', $mini_cart_button_html);
+         }
+    }
 
     public function woocommerce_paypal_express_checkout_button_angelleye($return = false) {
         if (!AngellEYE_Utility::is_valid_for_use_paypal_express()) {
             return false;
         }
+        if (!defined('WOOCOMMERCE_CART')) {
+            define('WOOCOMMERCE_CART', true);
+        }
+        WC()->cart->calculate_totals();
         if ($this->enabled == 'yes' && $this->show_on_cart == 'yes' && 0 < WC()->cart->total) {
             $cart_button_html = '';
             if ($this->enable_tokenized_payments == 'yes') {
@@ -439,6 +453,13 @@ class Angelleye_PayPal_Express_Checkout_Helper {
         if (!AngellEYE_Utility::is_valid_for_use_paypal_express()) {
             return false;
         }
+        if (!defined('WOOCOMMERCE_CHECKOUT')) {
+            define('WOOCOMMERCE_CHECKOUT', true);
+        }
+        if (!defined('WOOCOMMERCE_CART')) {
+            define('WOOCOMMERCE_CART', true);
+        }
+        WC()->cart->calculate_totals();
         if (WC()->cart->total > 0) {
             $ec_top_checkout_button = '';
             wp_enqueue_script('angelleye_button');
