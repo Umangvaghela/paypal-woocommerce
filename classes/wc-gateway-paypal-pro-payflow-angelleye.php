@@ -1198,7 +1198,7 @@ for the Payflow SDK. If you purchased your account directly from PayPal, use Pay
             exit();
         }
     }
-    public function process_subscription_payment($order, $amount) {
+    public function process_subscription_payment($order, $amount, $payment_token = null) {
         $order_id = version_compare( WC_VERSION, '3.0', '<' ) ? $order->id : $order->get_id();
         if (!class_exists('Angelleye_PayPal')) {
             require_once( PAYPAL_FOR_WOOCOMMERCE_PLUGIN_DIR . '/classes/lib/angelleye/paypal-php-library/includes/paypal.class.php' );
@@ -1318,6 +1318,9 @@ for the Payflow SDK. If you purchased your account directly from PayPal, use Pay
             }
             if ($this->is_subscription($order_id)) {
                 $PayPalRequestData['origid'] = get_post_meta($order_id, '_payment_tokens_id', true);
+            }
+            if( !empty($payment_token) ) {
+                $PayPalRequestData['origid'] = $payment_token;
             }
             $PayPalResult = $PayPal->ProcessTransaction($PayPalRequestData);
 

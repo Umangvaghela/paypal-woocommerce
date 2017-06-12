@@ -45,7 +45,7 @@ class AngellEYE_Admin_Order_Payment_Process {
                 }
                 break;
             case 'braintree': {
-                    echo 'paypal_advanced';
+                    $this->angelleye_braintree_reference_transaction($order);
                 }
                 break;
             case 'paypal_credit_card_rest': {
@@ -53,7 +53,7 @@ class AngellEYE_Admin_Order_Payment_Process {
                 }
                 break;
             case 'paypal_advanced': {
-                    echo 'paypal_advanced';
+                    $this->angelleye_paypal_advanced_reference_transaction($order);
                 }
                 break;
             case 'paypal_pro': {
@@ -61,7 +61,7 @@ class AngellEYE_Admin_Order_Payment_Process {
                 }
                 break;
             case 'paypal_pro_payflow': {
-                    echo 'paypal_pro_payflow';
+                    $this->angelleye_paypal_pro_payflow_reference_transaction($order);
                 }
                 break;
         }
@@ -94,23 +94,8 @@ class AngellEYE_Admin_Order_Payment_Process {
     public function get_usable_reference_transaction($order) {
         $this->payment_method = $order->get_payment_method();
         $user_id = $order->get_user_id();
-        switch ($this->payment_method) {
-            case (in_array($this->payment_method, array('paypal_express', 'braintree', 'paypal_credit_card_rest'))): {
-                    return $this->angelleye_get_all_tokens_by_payment_method($user_id, $this->payment_method);
-                }
-                break;
-            case 'paypal_advanced': {
-                    echo 'paypal_advanced';
-                }
-                break;
-            case 'paypal_pro': {
-                    return $this->angelleye_get_all_tokens_by_payment_method($user_id, $order);
-                }
-                break;
-            case 'paypal_pro_payflow': {
-                    echo 'paypal_pro_payflow';
-                }
-                break;
+        if(in_array($this->payment_method, array('paypal_express', 'braintree', 'paypal_credit_card_rest', 'paypal_advanced', 'paypal_pro', 'paypal_pro_payflow'))) {
+            return $this->angelleye_get_all_tokens_by_payment_method($user_id, $order);
         }
     }
 
@@ -173,7 +158,7 @@ class AngellEYE_Admin_Order_Payment_Process {
                 }
                 break;
             case 'braintree' : {
-                    echo 'braintree';
+                    
                 }
                 break;
             case 'paypal_advanced': {
@@ -181,7 +166,7 @@ class AngellEYE_Admin_Order_Payment_Process {
                 }
                 break;
             case 'paypal_credit_card_rest': {
-                    echo 'paypal_credit_card_rest';
+                    
                 }
                 break;
         }
@@ -283,6 +268,17 @@ class AngellEYE_Admin_Order_Payment_Process {
             }
         }
     }
+    
+    public function angelleye_braintree_reference_transaction($order) {
+        $tokens = $this->get_usable_reference_transaction($order);
+        if (!empty($tokens)) {
+            $this->angelleye_load_payment_method_setting($order);
+            if(class_exists('WC_Gateway_Braintree_AngellEYE')) {
+                $braintree = new WC_Gateway_Braintree_AngellEYE();
+                $braintree->process_subscription_payment($order, $amount = '', $tokens[0]);
+            }
+        }
+    }
 
     public function angelleye_place_order_button() {
         echo '<div class="wrap"><input type="hidden" name="angelleye_admin_order_payment_process_action" id="angelleye_admin_order_payment_process" value="' . wp_create_nonce('angelleye_admin_order_payment_process') . '" /><input type="submit" id="angelleye_payment_submit_button" value="Place order" name="save" class="button button-primary"></div>';
@@ -301,6 +297,37 @@ class AngellEYE_Admin_Order_Payment_Process {
                 }
             }
             $this->paypal_rest_api->admin_process_payment($order, $tokens[0]);
+        }
+    }
+    
+    public function angelleye_paypal_advanced_reference_transaction($order) {
+        $order_id = version_compare(WC_VERSION, '3.0', '<') ? $order->id : $order->get_id();
+        $tokens = $this->get_usable_reference_transaction($order);
+        if (!empty($tokens)) {
+            $this->angelleye_load_payment_method_setting($order);
+            if(class_exists('WC_Gateway_PayPal_Advanced_AngellEYE')) {
+                $paypal_advanced = new WC_Gateway_PayPal_Advanced_AngellEYE();
+                $paypal_advanced->create_reference_transaction($tokens[0], $order);
+                $inq_result = $paypal_advanced->inquiry_transaction($order, $order_id);
+                if ($inq_result == 'Approved') {
+                    $order->payment_complete($tokens[0]);
+                    $order->add_order_note(sprintf(__('Payment completed for the  (Order: %s)', 'paypal-for-woocommerce'), $order->get_order_number()));
+                    if ($paypal_advanced->debug == 'yes') {
+                        $paypal_advanced->log->add('paypal_advanced', sprintf(__('Payment completed for the  (Order: %s)', 'paypal-for-woocommerce'), $order->get_order_number()));
+                    }
+                }
+            }
+        }
+    }
+    
+    public function angelleye_paypal_pro_payflow_reference_transaction($order) {
+       $tokens = $this->get_usable_reference_transaction($order);
+        if (!empty($tokens)) {
+            $this->angelleye_load_payment_method_setting($order);
+            if(class_exists('WC_Gateway_PayPal_Pro_PayFlow_AngellEYE')) {
+                $paypal_pro_payflow = new WC_Gateway_PayPal_Pro_PayFlow_AngellEYE();
+                $paypal_pro_payflow->process_subscription_payment($order, $amount = '', $tokens[0]);
+            }
         }
     }
 
