@@ -23,16 +23,18 @@ class AngellEYE_Admin_Order_Payment_Process {
     }
 
     public function angelleye_admin_process_payment($post_id, $post) {
-        if (!empty($_POST['angelleye_admin_order_payment_process_action'])) {
-            if (wp_verify_nonce($_POST['angelleye_admin_order_payment_process_action'], 'angelleye_admin_order_payment_process')) {
-                if (empty($post_id)) {
-                    return false;
+        if( !empty($_POST['save']) && $_POST['save'] == 'Place order' ) {
+            if (!empty($_POST['angelleye_admin_order_payment_process_action'])) {
+                if (wp_verify_nonce($_POST['angelleye_admin_order_payment_process_action'], 'angelleye_admin_order_payment_process')) {
+                    if (empty($post_id)) {
+                        return false;
+                    }
+                    if ($post->post_type != 'shop_order') {
+                        return false;
+                    }
+                    $order = wc_get_order($post_id);
+                    do_action('angelleye_admin_order_payment_process_action_hook', $order);
                 }
-                if ($post->post_type != 'shop_order') {
-                    return false;
-                }
-                $order = wc_get_order($post_id);
-                do_action('angelleye_admin_order_payment_process_action_hook', $order);
             }
         }
     }
@@ -262,9 +264,32 @@ class AngellEYE_Admin_Order_Payment_Process {
             $this->angelleye_load_payment_method_setting($order);
             $PayPalRequestData = $this->angelleye_reference_transaction_request_ec_pp_pf($order, $tokens[0]);
             $result = $this->paypal->DoReferenceTransaction($PayPalRequestData);
-            if ($result['ACK'] == 'Success' || $result['ACK'] == 'SuccessWithWarning') {
+            if (!empty($result['ACK']) && ($result['ACK'] == 'Success' || $result['ACK'] == 'SuccessWithWarning')) {
                 $order->payment_complete($result['TRANSACTIONID']);
                 $order->add_order_note(sprintf(__('%s payment approved! Trnsaction ID: %s', 'paypal-for-woocommerce'), $this->payment_method, $result['TRANSACTIONID']));
+            } else {
+                if (!empty($result['L_ERRORCODE0'])) {
+                    $ErrorCode = urldecode($result['L_ERRORCODE0']);
+                } else {
+                    $ErrorCode = '';
+                }
+                if (!empty($result['L_SHORTMESSAGE0'])) {
+                    $ErrorShortMsg = urldecode($result['L_SHORTMESSAGE0']);
+                } else {
+                    $ErrorShortMsg = '';
+                }
+                if (!empty($result['L_LONGMESSAGE0'])) {
+                    $ErrorLongMsg = urldecode($result['L_LONGMESSAGE0']);
+                } else {
+                    $ErrorLongMsg = '';
+                }
+                if (!empty($result['L_SEVERITYCODE0'])) {
+                    $ErrorSeverityCode = urldecode($result['L_SEVERITYCODE0']);
+                } else {
+                    $ErrorSeverityCode = '';
+                }
+                $message = sprintf(__('PayPal %s API call failed', 'paypal-for-woocommerce') . PHP_EOL . __('Detailed Error Message: %s', 'paypal-for-woocommerce') . PHP_EOL . __('Short Error Message: %s', 'paypal-for-woocommerce') . PHP_EOL . __('Error Code: %s', 'paypal-for-woocommerce') . PHP_EOL . __('Error Severity Code: %s', 'paypal-for-woocommerce'), 'DoReferenceTransaction', $ErrorLongMsg, $ErrorShortMsg, $ErrorCode, $ErrorSeverityCode);
+                $order->add_order_note($message);
             }
         }
     }
