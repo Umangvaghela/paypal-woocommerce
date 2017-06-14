@@ -23,7 +23,7 @@ class AngellEYE_Admin_Order_Payment_Process {
     }
 
     public function angelleye_admin_process_payment($post_id, $post) {
-        if( !empty($_POST['save']) && $_POST['save'] == 'Place order' ) {
+        if (!empty($_POST['save']) && $_POST['save'] == 'Place order') {
             if (!empty($_POST['angelleye_admin_order_payment_process_action'])) {
                 if (wp_verify_nonce($_POST['angelleye_admin_order_payment_process_action'], 'angelleye_admin_order_payment_process')) {
                     if (empty($post_id)) {
@@ -73,16 +73,74 @@ class AngellEYE_Admin_Order_Payment_Process {
     public function admin_order_payment_process($post) {
         $order_id = $post->ID;
         $order = wc_get_order($order_id);
-        if ($this->is_display_admin_order_payment_process_box($order)) {
-            $token_list = $this->get_usable_reference_transaction($order);
-            if (!empty($token_list)) {
-                $this->angelleye_place_order_button();
-            } else {
-                echo 'payment method not avilable';
-            }
+        if ($this->angelleye_is_order_created_by_admin($order) && $this->angelleye_is_order_status_auto_draft($order) == false) {
+            $reason_array = $this->angelleye_get_reason_why_place_order_button_not_available($order);
+            $reason_message = $this->angelleye_reason_array_to_nice_message($reason_array);
+            $this->angelleye_place_order_button($reason_message);
         } else {
             $this->angelleye_hide_metabox();
         }
+    }
+
+    public function angelleye_reason_array_to_nice_message($reason_array) {
+        $reason_message = '';
+        if (!empty($reason_array)) {
+            foreach ($reason_array as $key => $value) {
+                $reason_message .= $value . '<br /><br />';
+            }
+        }
+        return $reason_message;
+    }
+
+    public function angelleye_get_reason_why_place_order_button_not_available($order) {
+        $reason_array = array();
+        $token_list = $this->angelleye_is_usable_reference_transaction_avilable($order);
+        if ($this->angelleye_is_order_need_payment($order) == false) {
+            $reason_array[] = __('Order total must be greater than zero an amount for payment process.', 'paypal-for-woocommerce');
+        }
+        if ($this->angelleye_is_order_status_pending($order) == false) {
+            $reason_array[] = __('Order status must be pending for payment process.', 'paypal-for-woocommerce');
+        }
+        if ($this->angelleye_is_order_user_selected($order) == false) {
+            $reason_array[] = __('Customer must be selected for order.', 'paypal-for-woocommerce');
+        }
+        if ($this->angelleye_is_order_payment_method_selected($order) == false) {
+            $reason_array[] = __('Payment method is not available for payment process, Please select Payment method from Billing details section.', 'paypal-for-woocommerce');
+        } else {
+            if (empty($token_list) && $this->angelleye_is_order_user_selected($order) == true) {
+                $reason_array[] = __('Payment Token Or Reference transaction ID is not available for payment process.', 'paypal-for-woocommerce');
+            }
+        }
+        return $reason_array;
+    }
+
+    public function angelleye_is_order_created_by_admin($order) {
+        return ($order->get_created_via() == '') ? true : false;
+    }
+
+    public function angelleye_is_usable_reference_transaction_avilable($order) {
+        $token_list = $this->get_usable_reference_transaction($order);
+        return (!empty($token_list)) ? $token_list : false;
+    }
+
+    public function angelleye_is_order_status_pending($order) {
+        return ($order->get_status() == 'pending') ? true : false;
+    }
+
+    public function angelleye_is_order_status_auto_draft($order) {
+        return ($order->get_status() == 'auto-draft') ? true : false;
+    }
+
+    public function angelleye_is_order_need_payment($order) {
+        return ($order->get_total() > 0) ? true : false;
+    }
+
+    public function angelleye_is_order_payment_method_selected($order) {
+        return ($order->get_payment_method() != '') ? true : false;
+    }
+
+    public function angelleye_is_order_user_selected($order) {
+        return ($order->get_user_id() != '0') ? true : false;
     }
 
     public function is_display_admin_order_payment_process_box($order) {
@@ -96,7 +154,7 @@ class AngellEYE_Admin_Order_Payment_Process {
     public function get_usable_reference_transaction($order) {
         $this->payment_method = $order->get_payment_method();
         $user_id = $order->get_user_id();
-        if(in_array($this->payment_method, array('paypal_express', 'braintree', 'paypal_credit_card_rest', 'paypal_advanced', 'paypal_pro', 'paypal_pro_payflow'))) {
+        if (in_array($this->payment_method, array('paypal_express', 'braintree', 'paypal_credit_card_rest', 'paypal_advanced', 'paypal_pro', 'paypal_pro_payflow'))) {
             return $this->angelleye_get_all_tokens_by_payment_method($user_id, $order);
         }
     }
@@ -293,20 +351,24 @@ class AngellEYE_Admin_Order_Payment_Process {
             }
         }
     }
-    
+
     public function angelleye_braintree_reference_transaction($order) {
         $tokens = $this->get_usable_reference_transaction($order);
         if (!empty($tokens)) {
             $this->angelleye_load_payment_method_setting($order);
-            if(class_exists('WC_Gateway_Braintree_AngellEYE')) {
+            if (class_exists('WC_Gateway_Braintree_AngellEYE')) {
                 $braintree = new WC_Gateway_Braintree_AngellEYE();
                 $braintree->process_subscription_payment($order, $amount = '', $tokens[0]);
             }
         }
     }
 
-    public function angelleye_place_order_button() {
-        echo '<div class="wrap"><input type="hidden" name="angelleye_admin_order_payment_process_action" id="angelleye_admin_order_payment_process" value="' . wp_create_nonce('angelleye_admin_order_payment_process') . '" /><input type="submit" id="angelleye_payment_submit_button" value="Place order" name="save" class="button button-primary"></div>';
+    public function angelleye_place_order_button($reason_message) {
+        $is_disable = '';
+        if (!empty($reason_message)) {
+            $is_disable = 'disabled';
+        }
+        echo '<div class="wrap">' . $reason_message . '<input type="hidden" name="angelleye_admin_order_payment_process_action" id="angelleye_admin_order_payment_process" value="' . wp_create_nonce('angelleye_admin_order_payment_process') . '" /><input type="submit" ' . $is_disable . ' id="angelleye_payment_submit_button" value="Place order" name="save" class="button button-primary"></div>';
     }
 
     public function angelleye_paypal_credit_card_rest_reference_transaction($order) {
@@ -324,13 +386,13 @@ class AngellEYE_Admin_Order_Payment_Process {
             $this->paypal_rest_api->admin_process_payment($order, $tokens[0]);
         }
     }
-    
+
     public function angelleye_paypal_advanced_reference_transaction($order) {
         $order_id = version_compare(WC_VERSION, '3.0', '<') ? $order->id : $order->get_id();
         $tokens = $this->get_usable_reference_transaction($order);
         if (!empty($tokens)) {
             $this->angelleye_load_payment_method_setting($order);
-            if(class_exists('WC_Gateway_PayPal_Advanced_AngellEYE')) {
+            if (class_exists('WC_Gateway_PayPal_Advanced_AngellEYE')) {
                 $paypal_advanced = new WC_Gateway_PayPal_Advanced_AngellEYE();
                 $paypal_advanced->create_reference_transaction($tokens[0], $order);
                 $inq_result = $paypal_advanced->inquiry_transaction($order, $order_id);
@@ -344,12 +406,12 @@ class AngellEYE_Admin_Order_Payment_Process {
             }
         }
     }
-    
+
     public function angelleye_paypal_pro_payflow_reference_transaction($order) {
-       $tokens = $this->get_usable_reference_transaction($order);
+        $tokens = $this->get_usable_reference_transaction($order);
         if (!empty($tokens)) {
             $this->angelleye_load_payment_method_setting($order);
-            if(class_exists('WC_Gateway_PayPal_Pro_PayFlow_AngellEYE')) {
+            if (class_exists('WC_Gateway_PayPal_Pro_PayFlow_AngellEYE')) {
                 $paypal_pro_payflow = new WC_Gateway_PayPal_Pro_PayFlow_AngellEYE();
                 $paypal_pro_payflow->process_subscription_payment($order, $amount = '', $tokens[0]);
             }
