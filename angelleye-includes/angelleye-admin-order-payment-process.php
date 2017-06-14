@@ -73,7 +73,7 @@ class AngellEYE_Admin_Order_Payment_Process {
     public function admin_order_payment_process($post) {
         $order_id = $post->ID;
         $order = wc_get_order($order_id);
-        if ($this->angelleye_is_order_created_by_admin($order) && $this->angelleye_is_order_status_auto_draft($order) == false) {
+        if ($this->angelleye_is_order_created_by_admin($order) && $this->angelleye_is_order_status_pending($order) == true) {
             $reason_array = $this->angelleye_get_reason_why_place_order_button_not_available($order);
             $reason_message = $this->angelleye_reason_array_to_nice_message($reason_array);
             $this->angelleye_place_order_button($reason_message);
@@ -85,9 +85,11 @@ class AngellEYE_Admin_Order_Payment_Process {
     public function angelleye_reason_array_to_nice_message($reason_array) {
         $reason_message = '';
         if (!empty($reason_array)) {
+            $reason_message .= '<ul>';
             foreach ($reason_array as $key => $value) {
-                $reason_message .= $value . '<br /><br />';
+                $reason_message .= '<li>' . $value . '</li>';
             }
+            $reason_message .= '</ul>';
         }
         return $reason_message;
     }
@@ -95,9 +97,6 @@ class AngellEYE_Admin_Order_Payment_Process {
     public function angelleye_get_reason_why_place_order_button_not_available($order) {
         $reason_array = array();
         $token_list = $this->angelleye_is_usable_reference_transaction_avilable($order);
-        if ($this->angelleye_is_order_need_payment($order) == false) {
-            $reason_array[] = __('Order total must be greater than zero an amount for payment process.', 'paypal-for-woocommerce');
-        }
         if ($this->angelleye_is_order_status_pending($order) == false) {
             $reason_array[] = __('Order status must be pending for payment process.', 'paypal-for-woocommerce');
         }
@@ -110,6 +109,12 @@ class AngellEYE_Admin_Order_Payment_Process {
             if (empty($token_list) && $this->angelleye_is_order_user_selected($order) == true) {
                 $reason_array[] = __('Payment Token Or Reference transaction ID is not available for payment process.', 'paypal-for-woocommerce');
             }
+        }
+        if ($this->angelleye_is_order_need_payment($order) == false) {
+            $reason_array[] = __('Order total must be greater than zero an amount for payment process.', 'paypal-for-woocommerce');
+        }
+        if( !empty($reason_array) ) {
+            $reason_array[] = __("don't forget to press update button after done with above thing.", 'paypal-for-woocommerce');
         }
         return $reason_array;
     }
@@ -368,7 +373,7 @@ class AngellEYE_Admin_Order_Payment_Process {
         if (!empty($reason_message)) {
             $is_disable = 'disabled';
         }
-        echo '<div class="wrap">' . $reason_message . '<input type="hidden" name="angelleye_admin_order_payment_process_action" id="angelleye_admin_order_payment_process" value="' . wp_create_nonce('angelleye_admin_order_payment_process') . '" /><input type="submit" ' . $is_disable . ' id="angelleye_payment_submit_button" value="Place order" name="save" class="button button-primary"></div>';
+        echo '<div class="wrap angelleye_admin_order_process">' . $reason_message . '<input type="hidden" name="angelleye_admin_order_payment_process_action" id="angelleye_admin_order_payment_process" value="' . wp_create_nonce('angelleye_admin_order_payment_process') . '" /><input type="submit" ' . $is_disable . ' id="angelleye_payment_submit_button" value="Place order" name="save" class="button button-primary"></div>';
     }
 
     public function angelleye_paypal_credit_card_rest_reference_transaction($order) {
