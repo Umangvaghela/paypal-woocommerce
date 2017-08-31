@@ -80,7 +80,7 @@ class Angelleye_PayPal_Express_Checkout_Helper {
             add_filter('body_class', array($this, 'ec_add_body_class'));
             add_action('woocommerce_checkout_fields', array($this, 'ec_display_checkout_fields'));
             add_action('woocommerce_checkout_billing', array($this, 'ec_formatted_billing_address'), 9);
-            add_action('woocommerce_checkout_shipping', array($this, 'ec_formatted_shipping_address'), 9);
+            //add_action('woocommerce_checkout_shipping', array($this, 'ec_formatted_shipping_address'), 9);
             add_filter('woocommerce_terms_is_checked_default', array($this, 'ec_terms_express_checkout'));
             add_action('woocommerce_cart_emptied', array($this, 'ec_clear_session_data'));
             add_filter('woocommerce_thankyou_order_received_text', array($this, 'ec_order_received_text'), 10, 2);
@@ -280,13 +280,13 @@ class Angelleye_PayPal_Express_Checkout_Helper {
                             $checkout_fields['billing']['billing_' . $field_key]['class'][] = 'hidden';
                         }
                     }
-                    if (isset($checkout_fields['shipping']) && isset($checkout_fields['shipping']['shipping_' . $field_key])) {
-                        $required = isset($checkout_fields['shipping']['shipping_' . $field_key]['required']) && $checkout_fields['shipping']['shipping_' . $field_key]['required'];
-                        if (!$required || $required && !empty($value)) {
-                            $checkout_fields['shipping']['shipping_' . $field_key]['class'][] = 'express-provided';
-                            $checkout_fields['shipping']['shipping_' . $field_key]['class'][] = 'hidden';
-                        }
-                    }
+//                    if (isset($checkout_fields['shipping']) && isset($checkout_fields['shipping']['shipping_' . $field_key])) {
+//                        $required = isset($checkout_fields['shipping']['shipping_' . $field_key]['required']) && $checkout_fields['shipping']['shipping_' . $field_key]['required'];
+//                        if (!$required || $required && !empty($value)) {
+//                            $checkout_fields['shipping']['shipping_' . $field_key]['class'][] = 'express-provided';
+//                            $checkout_fields['shipping']['shipping_' . $field_key]['class'][] = 'hidden';
+//                        }
+//                    }
                 }
             }
             return $checkout_fields;
@@ -309,7 +309,7 @@ class Angelleye_PayPal_Express_Checkout_Helper {
             }
             ?>
             <div class="express-provided-address">
-<!--                <a href="#" class="ex-show-address-fields" data-type="<?php echo esc_attr($type); ?>"><?php esc_html_e('Edit', 'paypal-for-woocommerce'); ?></a>-->
+               <a href="#" class="ex-show-address-fields" data-type="<?php echo esc_attr('billing'); ?>"><?php esc_html_e('Edit', 'paypal-for-woocommerce'); ?></a>
                 <address>
                     <?php
                     $address = array(

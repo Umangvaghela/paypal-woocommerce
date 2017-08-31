@@ -1083,7 +1083,7 @@ if(!class_exists('AngellEYE_Gateway_Paypal')){
                 return $page_title;
             }
             $paypal_express_checkout = WC()->session->get( 'paypal_express_checkout' );
-            if ('Checkout' == $page_title && !empty($paypal_express_checkout)) {
+            if ( ! is_admin() && is_main_query() && in_the_loop() && is_page() && is_checkout() && !empty($paypal_express_checkout) ) {
                 remove_filter('the_title', array($this, 'angelleye_paypal_for_woocommerce_page_title'));
                 return 'Review Order';
             } else {
