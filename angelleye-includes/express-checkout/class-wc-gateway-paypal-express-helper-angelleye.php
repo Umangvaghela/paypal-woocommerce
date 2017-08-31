@@ -30,6 +30,7 @@ class Angelleye_PayPal_Express_Checkout_Helper {
             $this->pp_button_type_my_custom = !empty($this->setting['pp_button_type_my_custom']) ? $this->setting['pp_button_type_my_custom'] :  WC_Gateway_PayPal_Express_AngellEYE::angelleye_get_paypalimage();
             $this->show_on_product_page = !empty($this->setting['show_on_product_page']) ? $this->setting['show_on_product_page'] : 'no';
             $this->enabled = !empty($this->setting['enabled']) ? $this->setting['enabled'] : 'no';
+            $this->review_title_page = !empty($this->setting['review_title_page']) ? $this->setting['review_title_page'] : 'Review Order';
             $this->show_on_checkout = !empty($this->setting['show_on_checkout']) ? $this->setting['show_on_checkout'] : 'top';
             $this->button_position = !empty($this->setting['button_position']) ? $this->setting['button_position'] : 'bottom';
             $this->show_on_cart = !empty($this->setting['show_on_cart']) ? $this->setting['show_on_cart'] : 'yes';
@@ -114,6 +115,7 @@ class Angelleye_PayPal_Express_Checkout_Helper {
             if( $this->function_helper->ec_is_express_checkout() ) {
                 remove_all_actions('woocommerce_review_order_before_payment');
             }
+            add_filter('the_title', array($this, 'angelleye_paypal_for_woocommerce_page_title'), 99, 1);
             $this->is_order_completed = true;
         } catch (Exception $ex) {
 
@@ -812,5 +814,18 @@ class Angelleye_PayPal_Express_Checkout_Helper {
             }
         
         return $state_value;
+    }
+    
+    public function angelleye_paypal_for_woocommerce_page_title($page_title) {
+        if (sizeof(WC()->session) == 0) {
+            return $page_title;
+        }
+        $paypal_express_checkout = WC()->session->get( 'paypal_express_checkout' );
+        if ( ! is_admin() && is_main_query() && in_the_loop() && is_page() && is_checkout() && !empty($paypal_express_checkout) ) {
+            remove_filter('the_title', array($this, 'angelleye_paypal_for_woocommerce_page_title'));
+            return $this->review_title_page;
+        } else {
+            return $page_title;
+        }
     }
 }
